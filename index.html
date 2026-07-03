@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vintage Checkers &mdash; Bird's-Eye Draughts</title>
+<meta name="description" content="A vintage parlour-style checkers game with a bird's-eye board, an adjustable-strength bot (1-10), and pass-and-play for two." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%236b4226'/%3E%3Ccircle cx='50' cy='50' r='34' fill='%237a2e2e' stroke='%23b08d57' stroke-width='5'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Cormorant+Garamond:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="frame">
+  <header class="title-bar">
+    <h1>Vintage Checkers</h1>
+    <p class="subtitle">A parlour game of draughts &mdash; viewed from above</p>
+  </header>
+
+  <main class="layout">
+    <section class="board-wrap">
+      <div class="board-corner"></div>
+      <div class="board-labels board-labels-top" id="labelsTop"></div>
+      <div class="board-corner"></div>
+
+      <div class="board-labels board-labels-side" id="labelsLeft"></div>
+      <div class="board-frame">
+        <div id="board" class="board" role="grid" aria-label="Checkers board, bird's-eye view"></div>
+      </div>
+      <div class="board-labels board-labels-side" id="labelsRight"></div>
+
+      <div class="board-corner"></div>
+      <div class="board-labels board-labels-top" id="labelsBottom"></div>
+      <div class="board-corner"></div>
+
+      <div id="winOverlay" class="win-overlay hidden">
+        <div class="win-card">
+          <h2 id="winText">Red Wins!</h2>
+          <button id="winNewGame" type="button">New Game</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="panel-section">
+        <h2>Game Mode</h2>
+        <div class="segmented" id="modeSegmented">
+          <button data-mode="bot" class="seg-btn active" type="button">Vs. Bot</button>
+          <button data-mode="local" class="seg-btn" type="button">Two Players</button>
+        </div>
+      </div>
+
+      <div class="panel-section" id="difficultySection">
+        <h2>Bot Strength</h2>
+        <input type="range" min="1" max="10" value="5" id="difficultySlider" aria-label="Bot difficulty from 1 to 10" />
+        <div class="difficulty-readout">
+          <span id="difficultyLabel">Club Player</span>
+          <span id="difficultyValue">5 / 10</span>
+        </div>
+      </div>
+
+      <div class="panel-section status-section">
+        <h2>Status</h2>
+        <p id="statusText" class="status-text">Red to move</p>
+        <div class="captured-row">
+          <div class="captured-item"><span class="dot piece-dot red"></span>Red captured <span id="redCaptured">0</span></div>
+          <div class="captured-item"><span class="dot piece-dot black"></span>Black captured <span id="blackCaptured">0</span></div>
+        </div>
+      </div>
+
+      <div class="panel-section actions">
+        <button id="newGameBtn" class="btn" type="button">New Game</button>
+        <button id="undoBtn" class="btn" type="button">Undo</button>
+        <button id="hintBtn" class="btn" type="button">Hint</button>
+        <button id="soundBtn" class="btn btn-icon" type="button" aria-pressed="true">&#9834; Sound</button>
+      </div>
+      <p id="hintText" class="hint-text"></p>
+
+      <div class="panel-section log-section">
+        <h2>Move Log</h2>
+        <ol id="moveLog" class="move-log"></ol>
+      </div>
+
+      <div class="panel-section rules-section">
+        <h2>How to Play</h2>
+        <ul>
+          <li>Pieces move diagonally toward the far side of the board.</li>
+          <li>Jump an opponent's piece to capture it &mdash; capturing is mandatory whenever it's available.</li>
+          <li>Chain jumps continue automatically: keep clicking landing squares until the jump sequence ends.</li>
+          <li>Reach the far row to crown a King, who moves and captures in all four diagonal directions.</li>
+          <li>Win by capturing every enemy piece, or by leaving your opponent with no legal move.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="footer-note">
+    <p>Vintage Checkers &middot; a bird's-eye parlour game</p>
+  </footer>
+</div>
+
+<script src="js/checkers.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
