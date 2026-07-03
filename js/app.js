@@ -22,6 +22,8 @@
     6: 'Strong Amateur', 7: 'Tournament', 8: 'Expert', 9: 'Master', 10: 'Grandmaster',
   };
 
+  const SAVE_KEY = 'vintageCheckersSave_v1';
+
   let state = null; // set by newGame()
 
   function newGame(mode) {
@@ -39,11 +41,82 @@
       inputLocked: false,
     };
     winOverlay.classList.add('hidden');
+    moveLogEl.innerHTML = '';
     hintTextEl.textContent = '';
     clearHintHighlights();
     updateModeUI();
     render();
     updateStatus();
+    saveGame();
+  }
+
+  // ---------- Save / resume (localStorage) ----------
+
+  function saveGame() {
+    if (!state) return;
+    try {
+      const data = {
+        board: state.board,
+        currentPlayer: state.currentPlayer,
+        mode: state.mode,
+        difficulty: state.difficulty,
+        captured: state.captured,
+        moveLog: state.moveLog,
+        gameOver: state.gameOver,
+        winner: state.winner,
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    } catch (e) {
+      // localStorage unavailable (private browsing, quota, etc.) - progress just won't persist.
+    }
+  }
+
+  function loadSavedGame() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!data || !Array.isArray(data.board)) return null;
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function restoreGame(data) {
+    state = {
+      board: data.board,
+      currentPlayer: data.currentPlayer,
+      mode: data.mode || 'bot',
+      difficulty: data.difficulty || 5,
+      selection: null,
+      history: [],
+      captured: data.captured || { red: 0, black: 0 },
+      moveLog: Array.isArray(data.moveLog) ? data.moveLog : [],
+      gameOver: !!data.gameOver,
+      winner: data.winner || null,
+      inputLocked: false,
+    };
+    difficultySlider.value = String(state.difficulty);
+    difficultyLabel.textContent = DIFFICULTY_LABELS[state.difficulty];
+    difficultyValue.textContent = `${state.difficulty} / 10`;
+    moveLogEl.innerHTML = '';
+    state.moveLog.forEach((label) => {
+      const li = document.createElement('li');
+      li.textContent = label;
+      moveLogEl.appendChild(li);
+    });
+    moveLogEl.scrollTop = moveLogEl.scrollHeight;
+    updateModeUI();
+    hintTextEl.textContent = '';
+    winOverlay.classList.add('hidden');
+    render();
+    updateStatus();
+    if (state.gameOver) {
+      showWinOverlay(state.winner);
+    } else {
+      maybeTriggerBot();
+    }
   }
 
   function updateModeUI() {
@@ -219,6 +292,9 @@
 
     const mover = state.board[move.from.r][move.from.c].player;
     const wasKingBefore = state.board[move.from.r][move.from.c].king;
+    const squareSize = boardEl.clientWidth / 8;
+    const overlayClones = createCaptureOverlays(move.captured, squareSize);
+
     state.board = Checkers.applyMove(state.board, move);
     state.selection = null;
 
@@ -236,6 +312,9 @@
     state.currentPlayer = nextPlayer;
 
     render();
+    animateMoveVisual(move, dest, squareSize, crowned);
+    fadeOutCaptureOverlays(overlayClones);
+    saveGame();
 
     const status = Checkers.isGameOver(state.board, nextPlayer);
     if (status.over) {
@@ -245,6 +324,66 @@
 
     updateStatus();
     maybeTriggerBot();
+  }
+
+  // ---------- GSAP-driven animation ----------
+
+  function createCaptureOverlays(capturedList, squareSize) {
+    return capturedList
+      .map((cap) => {
+        const originalPiece = squareEl(cap.r, cap.c).querySelector('.piece');
+        if (!originalPiece) return null;
+        const overlay = document.createElement('div');
+        overlay.className = 'overlay-piece';
+        overlay.style.width = squareSize + 'px';
+        overlay.style.height = squareSize + 'px';
+        overlay.style.left = cap.c * squareSize + 'px';
+        overlay.style.top = cap.r * squareSize + 'px';
+        const clone = originalPiece.cloneNode(true);
+        clone.classList.remove('selected-piece');
+        overlay.appendChild(clone);
+        boardEl.appendChild(overlay);
+        return overlay;
+      })
+      .filter(Boolean);
+  }
+
+  function fadeOutCaptureOverlays(overlays) {
+    if (overlays.length === 0) return;
+    if (window.gsap) {
+      gsap.to(overlays, {
+        opacity: 0,
+        scale: 0.25,
+        duration: 0.35,
+        ease: 'power1.in',
+        stagger: 0.07,
+        onComplete: () => overlays.forEach((el) => el.remove()),
+      });
+    } else {
+      overlays.forEach((el) => el.remove());
+    }
+  }
+
+  function animateMoveVisual(move, dest, squareSize, crowned) {
+    if (!window.gsap) return;
+    const destEl = squareEl(dest.r, dest.c).querySelector('.piece');
+    if (!destEl) return;
+
+    const waypoints = [move.from, ...move.path];
+    const tl = gsap.timeline();
+    waypoints.forEach((wp, i) => {
+      const dx = (wp.c - dest.c) * squareSize;
+      const dy = (wp.r - dest.r) * squareSize;
+      if (i === 0) {
+        tl.set(destEl, { x: dx, y: dy });
+      } else {
+        tl.to(destEl, { x: dx, y: dy, duration: 0.22, ease: 'power1.inOut' });
+      }
+    });
+    if (crowned) {
+      tl.to(destEl, { scale: 1.35, duration: 0.16, ease: 'power1.out' });
+      tl.to(destEl, { scale: 1, duration: 0.3, ease: 'back.out(2.5)' });
+    }
   }
 
   function maybeTriggerBot() {
@@ -264,8 +403,21 @@
     state.gameOver = true;
     state.winner = winner;
     updateStatus();
+    saveGame();
+    showWinOverlay(winner);
+  }
+
+  function showWinOverlay(winner) {
     winText.textContent = (winner === Checkers.RED ? 'Red' : 'Black') + ' Wins!';
     winOverlay.classList.remove('hidden');
+    const card = winOverlay.querySelector('.win-card');
+    if (window.gsap && card) {
+      gsap.fromTo(
+        card,
+        { opacity: 0, scale: 0.82, y: 12 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.45, ease: 'back.out(1.7)' }
+      );
+    }
   }
 
   function updateStatus() {
@@ -322,6 +474,7 @@
     winOverlay.classList.add('hidden');
     render();
     updateStatus();
+    saveGame();
   }
 
   // ---------- Hint ----------
@@ -405,6 +558,7 @@
     state.difficulty = v;
     difficultyValue.textContent = `${v} / 10`;
     difficultyLabel.textContent = DIFFICULTY_LABELS[v];
+    saveGame();
   });
 
   document.getElementById('newGameBtn').addEventListener('click', () => newGame(state.mode));
@@ -420,7 +574,12 @@
   // ---------- Init ----------
 
   buildBoardSkeleton();
-  difficultyLabel.textContent = DIFFICULTY_LABELS[Number(difficultySlider.value)];
-  difficultyValue.textContent = `${difficultySlider.value} / 10`;
-  newGame('bot');
+  const saved = loadSavedGame();
+  if (saved) {
+    restoreGame(saved);
+  } else {
+    difficultyLabel.textContent = DIFFICULTY_LABELS[Number(difficultySlider.value)];
+    difficultyValue.textContent = `${difficultySlider.value} / 10`;
+    newGame('bot');
+  }
 })();

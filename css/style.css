@@ -132,6 +132,7 @@ body {
 }
 
 .board {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   grid-template-rows: repeat(8, 1fr);
@@ -141,6 +142,17 @@ body {
   border-radius: 2px;
   overflow: hidden;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.overlay-piece {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 20;
+  top: 0;
+  left: 0;
 }
 
 .square {
